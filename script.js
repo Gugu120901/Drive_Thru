@@ -1,5 +1,5 @@
 // 🔗 Coloca aqui o IP do teu ESP32:
-const esp32IP = 'http://192.168.1.75';
+const esp32IP = 'http://192.168.1.9';
 
 function atualizarStatus() {
   fetch(esp32IP + '/status')
