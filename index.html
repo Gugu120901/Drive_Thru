@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Drive-Thru</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    .status, .countdown, .suggestions {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 10px auto;
+      max-width: 600px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .status span {
+      font-weight: bold;
+      font-size: 1.2em;
+    }
+    .chart-container {
+      max-width: 600px;
+      margin: 20px auto;
+    }
+    .telegram-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #0088cc;
+      color: white;
+      padding: 12px 18px;
+      border-radius: 50px;
+      text-decoration: none;
+      font-weight: bold;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Drive-Thru</h1>
+
+  <div class="status">
+    <h2>Estado Atual</h2>
+    <p id="statusText">Aguarde...</p>
+  </div>
+
+  <div class="countdown">
+    <h2>Tempo até Fecho</h2>
+    <p id="countdownText">Calculando...</p>
+  </div>
+
+  <div class="suggestions">
+    <h2>Sugestões</h2>
+    <p id="suggestionText">Aguarde informações...</p>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="ocupacaoChart"></canvas>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="janelasChart"></canvas>
+  </div>
+
+  <a class="telegram-btn" href="https://t.me/+6RGXoCeApNkzY2I0" target="_blank">Telegram</a>
+
+  <script>
+    const statusText = document.getElementById('statusText');
+    const countdownText = document.getElementById('countdownText');
+    const suggestionText = document.getElementById('suggestionText');
+
+    const ocupacaoCtx = document.getElementById('ocupacaoChart').getContext('2d');
+    const janelasCtx = document.getElementById('janelasChart').getContext('2d');
+
+    const ocupacaoChart = new Chart(ocupacaoCtx, {
+      type: 'line',
+      data: {
+        labels: [], 
+        datasets: [{
+          label: 'Ocupação (última hora)',
+          data: [],
+          borderColor: '#2ecc71',
+          fill: false
+        }]
+      }
+    });
+
+    const janelasChart = new Chart(janelasCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Janela 1', 'Janela 2', 'Janela 3', 'Janela 4'],
+        datasets: [{
+          data: [0, 0, 0, 0],
+          backgroundColor: ['#3498db', '#e74c3c', '#f1c40f', '#9b59b6']
+        }]
+      }
+    });
+
+    function atualizarSite() {
+      fetch('/status')
+        .then(response => response.json())
+        .then(data => {
+          const estados = data.janelas;
+          const atendente = data.atendente;
+
+          // Atualiza Estado Atual
+          const statusList = estados.map((estado, idx) => {
+            return `Janela ${idx + 1}: ${estado ? 'Ocupada' : 'Livre'}`;
+          }).join('<br>');
+          statusText.innerHTML = statusList + `<br>Atendente: ${atendente ? 'Ausente' : 'Presente'}`;
+
+          // Atualiza Gráfico de Janelas
+          janelasChart.data.datasets[0].data = estados.map(e => e ? 1 : 0);
+          janelasChart.update();
+
+          // Atualiza Gráfico de Ocupação (simulado aqui)
+          const hora = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+          if (ocupacaoChart.data.labels.length > 10) {
+            ocupacaoChart.data.labels.shift();
+            ocupacaoChart.data.datasets[0].data.shift();
+          }
+          ocupacaoChart.data.labels.push(hora);
+          ocupacaoChart.data.datasets[0].data.push(estados.filter(e => e).length);
+          ocupacaoChart.update();
+
+          // Atualiza Sugestões
+          const livres = estados.map((e, i) => !e ? i+1 : null).filter(n => n);
+          if (atendente) {
+            suggestionText.innerText = 'Atendente ausente. Aguarde atendimento.';
+          } else if (livres.length > 0) {
+            suggestionText.innerText = `Sugerimos a Janela ${livres[0]} — Menor tempo de espera.`;
+          } else {
+            suggestionText.innerText = 'Todas as janelas ocupadas no momento.';
+          }
+        });
+    }
+
+    function atualizarContagem() {
+      const agora = new Date();
+      const fecho = new Date();
+      fecho.setHours(2,0,0,0);
+      if (agora.getHours() >= 2) fecho.setDate(fecho.getDate() + 1);
+      const restante = fecho - agora;
+      const horas = Math.floor(restante / 1000 / 60 / 60);
+      const minutos = Math.floor((restante / 1000 / 60) % 60);
+      countdownText.innerText = `${horas}h ${minutos}min`;
+
+      if (horas < 1) {
+        countdownText.style.color = 'red';
+      } else {
+        countdownText.style.color = '#333';
+      }
+    }
+
+    setInterval(atualizarSite, 1000);
+    setInterval(atualizarContagem, 60000);
+    atualizarSite();
+    atualizarContagem();
+  </script>
+
+</body>
+</html>
