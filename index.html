@@ -108,12 +108,14 @@
       }
     });
 
-    function atualizarSite() {
-      fetch('/status')
-        .then(response => response.json())
-        .then(data => {
-          const estados = data.janelas;
-          const atendente = data.atendente;
+    const esp32IP = 'http://192.168.1.75'; // muda aqui para o IP real do seu ESP32
+
+    fetch(`${esp32IP}/status`)
+      .then(response => response.json())
+      .then(data => {
+        const estados = data.janelas;
+        const atendente = data.atendente;
+
 
           // Atualiza Estado Atual
           const statusList = estados.map((estado, idx) => {
